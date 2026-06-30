@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Predict — GoldML{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="section-header mb-5">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="/">Home</a></li>
+      <li class="breadcrumb-item active">Predict Gold Price</li>
+    </ol></nav>
+    <h2 class="fw-bold">Gold Price Prediction</h2>
+    <p class="text-muted">Enter 8 market indicators — our ensemble of 3 models predicts GLD with <strong>99.8% R²</strong>.</p>
+  </div>
+
+  <div class="row g-5">
+
+    <!-- ── Input Form ──────────────────────────────────────────────────── -->
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header card-header-gold">
+          <i class="bi bi-input-cursor-text me-2"></i>Enter Market Indicators
+          <span class="badge bg-warning text-dark ms-2 float-end">9 Features</span>
+        </div>
+        <div class="card-body p-4">
+
+          <form method="POST" action="{{ url_for('predict') }}" id="predictForm">
+
+            <!-- Group 1: Market Prices -->
+            <div class="feature-group mb-4">
+              <div class="feature-group-label">
+                <i class="bi bi-graph-up-arrow me-2 text-gold"></i>Market Prices
+              </div>
+              <div class="row g-3 mt-1">
+
+                <div class="col-6">
+                  <label class="form-label"><span class="feature-dot bg-primary"></span>SPX <span class="text-muted fw-normal">(S&P 500)</span></label>
+                  <input type="number" step="any" name="SPX" class="form-control"
+                         placeholder="e.g. 1500" value="{{ form_data.get('SPX','') }}" required>
+                  <div class="form-text">Range: 700–4800</div>
+                </div>
+
+                <div class="col-6">
+                  <label class="form-label"><span class="feature-dot bg-danger"></span>USO <span class="text-muted fw-normal">(Oil ETF)</span></label>
+                  <input type="number" step="any" name="USO" class="form-control"
+                         placeholder="e.g. 35" value="{{ form_data.get('USO','') }}" required>
+                  <div class="form-text">Range: 8–120</div>
+                </div>
+
+                <div class="col-6">
+                  <label class="form-label"><span class="feature-dot bg-success"></span>SLV <span class="text-muted fw-normal">(Silver ETF)</span></label>
+                  <input type="number" step="any" name="SLV" class="form-control"
+                         placeholder="e.g. 15" value="{{ form_data.get('SLV','') }}" required>
+                  <div class="form-text">Range: 5–50</div>
+                </div>
+
+                <div class="col-6">
+                  <label class="form-label"><span class="feature-dot bg-purple"></span>EUR/USD <span class="text-muted fw-normal">(FX Rate)</span></label>
+                  <input type="number" step="any" name="EURUSD" class="form-control"
+                         placeholder="e.g. 1.20" value="{{ form_data.get('EURUSD','') }}" required>
+                  <div class="form-text">Range: 1.05–1.60</div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Group 2: GLD Context -->
+            <div class="feature-group mb-4">
+              <div class="feature-group-label">
+                <i class="bi bi-clock-history me-2 text-gold"></i>GLD Historical Context
+                <span class="badge bg-warning text-dark ms-2" style="font-size:.65rem">Strongest Predictors</span>
+              </div>
+              <div class="row g-3 mt-1">
+
+                <div class="col-6">
+                  <label class="form-label"><span class="feature-dot bg-warning"></span>GLD Yesterday <span class="text-muted fw-normal">(lag-1)</span></label>
+                  <input type="number" step="any" name="GLD_lag1" class="form-control"
+                         placeholder="e.g. 124.5" value="{{ form_data.get('GLD_lag1','') }}" required>
+                  <div class="form-text">Previous day's GLD close</div>
+                </div>
+
+                <div class="col-6">
+                  <label class="form-label"><span class="feature-dot bg-info"></span>GLD 7-Day MA</label>
+                  <input type="number" step="any" name="GLD_MA7" class="form-control"
+                         placeholder="e.g. 123.8" value="{{ form_data.get('GLD_MA7','') }}" required>
+                  <div class="form-text">7-day moving average of GLD</div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Group 3: Daily Returns -->
+            <div class="feature-group mb-4">
+              <div class="feature-group-label">
+                <i class="bi bi-percent me-2 text-gold"></i>Daily % Returns (Momentum)
+              </div>
+              <div class="row g-3 mt-1">
+
+                <div class="col-6">
+                  <label class="form-label"><span class="feature-dot bg-primary"></span>SPX Return %</label>
+                  <input type="number" step="any" name="SPX_Return" class="form-control"
+                         placeholder="e.g. 0.5" value="{{ form_data.get('SPX_Return','') }}" required>
+                  <div class="form-text">Today's S&P 500 % change</div>
+                </div>
+
+                <div class="col-6">
+                  <label class="form-label"><span class="feature-dot bg-success"></span>SLV Return %</label>
+                  <input type="number" step="any" name="SLV_Return" class="form-control"
+                         placeholder="e.g. 0.8" value="{{ form_data.get('SLV_Return','') }}" required>
+                  <div class="form-text">Today's Silver % change</div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Auto-computed note -->
+            <div class="alert alert-info border-0 small mb-4 py-2">
+              <i class="bi bi-magic me-2"></i>
+              <strong>SLV/USO Ratio</strong> is auto-computed from your SLV and USO values — no manual input needed.
+            </div>
+
+            <button type="submit" class="btn btn-gold btn-lg w-100" id="predictBtn">
+              <i class="bi bi-lightning-fill me-2"></i>Predict Gold Price
+            </button>
+          </form>
+
+          <!-- Quick fill -->
+          <div class="mt-4">
+            <p class="small text-muted mb-2 fw-semibold">Quick fill with historical examples:</p>
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn btn-sm btn-outline-secondary qf"
+                data-spx="1447" data-uso="78" data-slv="15.2" data-eur="1.47"
+                data-lag="84.9" data-ma7="85.2" data-spxr="0.0" data-slvr="0.7">
+                📅 2008 (Crisis)
+              </button>
+              <button class="btn btn-sm btn-outline-secondary qf"
+                data-spx="1257" data-uso="11" data-slv="14.0" data-eur="1.12"
+                data-lag="155.0" data-ma7="154.5" data-spxr="-1.2" data-slvr="-0.8">
+                📅 2020 (COVID)
+              </button>
+              <button class="btn btn-sm btn-outline-secondary qf"
+                data-spx="2800" data-uso="95" data-slv="22.0" data-eur="1.09"
+                data-lag="168.0" data-ma7="167.5" data-spxr="-0.5" data-slvr="1.0">
+                📅 2022 (Inflation)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Result Panel ─────────────────────────────────────────────────── -->
+    <div class="col-lg-6">
+
+      {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+      {% endif %}
+
+      {% if prediction is not none %}
+
+      <!-- Main prediction card -->
+      <div class="prediction-result card border-0 shadow mb-4">
+        <div class="card-body p-5 text-center">
+          <div class="prediction-icon mb-2">🥇</div>
+          <p class="mb-1 small fw-bold text-uppercase" style="color:rgba(255,255,255,0.45);letter-spacing:2px">Predicted GLD Price</p>
+          <div class="prediction-value">${{ prediction }}</div>
+          <div class="prediction-label">USD per share · Random Forest</div>
+
+          <hr class="my-4" style="border-color:rgba(255,255,255,0.1)">
+
+          <!-- All 3 model predictions -->
+          <p class="small fw-semibold mb-3" style="color:rgba(255,255,255,0.5)">ALL MODEL PREDICTIONS</p>
+          <div class="row g-2 text-center">
+            {% for model, val in all_preds.items() %}
+            <div class="col-6">
+              <div class="p-3 rounded-3" style="background:rgba(255,255,255,0.07)">
+                <div class="fw-bold {% if model == 'Ensemble' %}text-gold{% else %}text-white{% endif %}" style="font-size:1.1rem">${{ val }}</div>
+                <div class="small" style="color:rgba(255,255,255,0.45)">{{ model }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Input summary -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header card-header-gold"><i class="bi bi-list-check me-2"></i>Your Input Summary</div>
+        <div class="card-body p-3">
+          <div class="row g-2 text-center">
+            {% set inputs = [
+              ('SPX', form_data.SPX),
+              ('USO', form_data.USO),
+              ('SLV', form_data.SLV),
+              ('EUR/USD', form_data.EURUSD),
+              ('GLD Lag-1', form_data.GLD_lag1),
+              ('GLD MA7', form_data.GLD_MA7),
+              ('SPX Ret%', form_data.SPX_Return),
+              ('SLV Ret%', form_data.SLV_Return),
+              ('SLV/USO', form_data.SLV_USO_Ratio),
+            ] %}
+            {% for label, val in inputs %}
+            <div class="col-4">
+              <div class="p-2 rounded-2 bg-light">
+                <div class="fw-bold small">{{ val }}</div>
+                <div class="text-muted" style="font-size:.7rem">{{ label }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Context chart -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header card-header-gold"><i class="bi bi-speedometer2 me-2"></i>Price Context (Historical Range)</div>
+        <div class="card-body p-4">
+          <canvas id="contextChart" height="140"></canvas>
+          <p class="text-center small text-muted mt-2 mb-0">Historical GLD range: $70 – $185 (2008–2018)</p>
+        </div>
+      </div>
+
+      {% else %}
+
+      <!-- Placeholder -->
+      <div class="card border-0 shadow-sm text-center p-5 h-100 d-flex flex-column justify-content-center align-items-center">
+        <div class="placeholder-icon">📊</div>
+        <h5 class="fw-bold text-muted mt-3">Prediction appears here</h5>
+        <p class="text-muted small">Fill in the 8 inputs and click <strong>Predict</strong>.</p>
+        <hr class="w-100">
+        <div class="text-start small text-muted w-100">
+          <p class="fw-semibold mb-2">9 features used:</p>
+          <div class="row g-1">
+            {% for f, desc in [
+              ('SPX','S&P 500 market index'),
+              ('USO','US Oil Fund ETF'),
+              ('SLV','Silver Trust ETF'),
+              ('EUR/USD','Euro-Dollar FX rate'),
+              ('GLD lag-1','Yesterday GLD price'),
+              ('GLD MA7','7-day moving average'),
+              ('SPX Return','S&P 500 daily momentum'),
+              ('SLV Return','Silver daily momentum'),
+              ('SLV/USO','Precious metals vs oil ratio'),
+            ] %}
+            <div class="col-12">
+              <span class="badge bg-dark me-2" style="font-size:.65rem;min-width:80px">{{ f }}</span>
+              <span style="font-size:.75rem">{{ desc }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.feature-group { background:#f8fafc; border-radius:12px; padding:1rem 1.2rem 1.2rem; border:1px solid #e2e8f0; }
+.feature-group-label { font-size:.8rem; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:.5px; }
+.bg-purple { background:#8b5cf6!important; }
+</style>
+<script>
+document.querySelectorAll('.qf').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelector('[name=SPX]').value      = btn.dataset.spx;
+    document.querySelector('[name=USO]').value      = btn.dataset.uso;
+    document.querySelector('[name=SLV]').value      = btn.dataset.slv;
+    document.querySelector('[name=EURUSD]').value   = btn.dataset.eur;
+    document.querySelector('[name=GLD_lag1]').value = btn.dataset.lag;
+    document.querySelector('[name=GLD_MA7]').value  = btn.dataset.ma7;
+    document.querySelector('[name=SPX_Return]').value = btn.dataset.spxr;
+    document.querySelector('[name=SLV_Return]').value = btn.dataset.slvr;
+  });
+});
+
+document.getElementById('predictForm')?.addEventListener('submit', () => {
+  const btn = document.getElementById('predictBtn');
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Predicting…';
+  btn.disabled = true;
+});
+
+{% if prediction is not none %}
+const pred = {{ prediction }};
+new Chart(document.getElementById('contextChart'), {
+  type: 'bar',
+  data: {
+    labels: ['2008 Low ($70)', 'Your Prediction', '2011 Peak ($185)'],
+    datasets: [{
+      data: [70, pred, 185],
+      backgroundColor: ['#6b728055','#f5a62399','#6b728055'],
+      borderColor:     ['#6b7280',  '#f5a623',  '#6b7280'],
+      borderWidth: 2, borderRadius: 8,
+    }]
+  },
+  options: {
+    responsive:true,
+    plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`$${ctx.parsed.y.toFixed(2)}`}} },
+    scales:{ y:{beginAtZero:false, min:60, title:{display:true,text:'USD'}} }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Home — GoldML{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero ───────────────────────────────────────────────────────────────── -->
+<section class="hero-section text-white text-center">
+  <!-- Floating particles -->
+  <div class="hero-particles">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="container-xl position-relative" style="z-index:1">
+    <div class="hero-badge mb-4">
+      <i class="bi bi-stars me-1"></i> Machine Learning · Portfolio Project
+    </div>
+    <h1 class="display-3 fw-bold mb-3">
+      Gold Price<br>
+      <span class="text-gold">Prediction</span> Dashboard
+    </h1>
+    <p class="lead mb-5 mx-auto" style="max-width:560px; color:rgba(255,255,255,0.6)">
+      End-to-end ML pipeline — EDA · Preprocessing · Lasso · Random Forest · XGBoost · Hyperparameter Tuning · Live Prediction
+    </p>
+    <div class="d-flex gap-3 justify-content-center flex-wrap mb-5">
+      <a href="{{ url_for('analysis') }}" class="btn btn-gold btn-lg px-5 py-3">
+        <i class="bi bi-bar-chart-line me-2"></i>Explore EDA
+      </a>
+      <a href="{{ url_for('predict') }}" class="btn btn-outline-light btn-lg px-5 py-3">
+        <i class="bi bi-lightning-fill me-2"></i>Predict Now
+      </a>
+    </div>
+    <!-- Mini stat strip inside hero -->
+    <div class="d-flex justify-content-center gap-4 flex-wrap" style="color:rgba(255,255,255,0.45); font-size:0.8rem; font-weight:600; letter-spacing:0.5px">
+      <span><i class="bi bi-check-circle-fill text-gold me-1"></i>2290 ROWS</span>
+      <span><i class="bi bi-check-circle-fill text-gold me-1"></i>3 FEATURES</span>
+      <span><i class="bi bi-check-circle-fill text-gold me-1"></i>R² = 99%</span>
+      <span><i class="bi bi-check-circle-fill text-gold me-1"></i>RMSE = $2.33</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Quick KPIs ──────────────────────────────────────────────────────────── -->
+<section class="py-5 bg-dark-subtle">
+  <div class="container-xl">
+    <div class="row g-4 text-center">
+      {% set best_r2 = results['Random Forest']['r2'] %}
+      {% set kpis = [
+        ('bi-table', 'Dataset Rows', stats.shape[0]|string, 'Financial time series'),
+        ('bi-columns', 'Features Used', '3', 'SPX · USO · SLV'),
+        ('bi-trophy', 'Best R² Score', (best_r2 * 100)|round(2)|string + '%', 'Random Forest'),
+        ('bi-graph-down-arrow', 'Best RMSE', results['Random Forest']['rmse']|string, 'USD — Random Forest'),
+      ] %}
+      {% for icon, label, val, sub in kpis %}
+      <div class="col-6 col-md-3">
+        <div class="kpi-card card h-100 border-0 shadow-sm">
+          <div class="card-body p-4">
+            <div class="kpi-icon mb-3"><i class="bi {{ icon }}"></i></div>
+            <div class="kpi-value">{{ val }}</div>
+            <div class="kpi-label">{{ label }}</div>
+            <div class="kpi-sub text-muted small mt-1">{{ sub }}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ── Model Snapshot ─────────────────────────────────────────────────────── -->
+<section class="py-5">
+  <div class="container-xl">
+    <div class="section-header text-center mb-5">
+      <h2 class="fw-bold">Model Performance Snapshot</h2>
+      <p class="text-muted">Three algorithms trained and compared. Random Forest wins.</p>
+    </div>
+    <div class="row g-4">
+      {% for name, m in results.items() %}
+      <div class="col-md-4">
+        <div class="model-card card h-100 border-0 shadow-sm {% if name == best %}best-model{% endif %}">
+          {% if name == best %}
+          <div class="best-badge"><i class="bi bi-trophy-fill me-1"></i>Best Model</div>
+          {% endif %}
+          <div class="card-body p-4">
+            <h5 class="fw-bold mb-3">{{ name }}</h5>
+            <div class="metric-row d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted">R² Score</span>
+              <span class="metric-val fw-bold text-success">{{ (m.r2 * 100)|round(2) }}%</span>
+            </div>
+            <div class="progress mb-3" style="height:6px">
+              <div class="progress-bar bg-success" style="width:{{ (m.r2*100)|round(1) }}%"></div>
+            </div>
+            <div class="metric-row d-flex justify-content-between mb-1">
+              <span class="text-muted">RMSE</span>
+              <span class="fw-semibold">{{ m.rmse }}</span>
+            </div>
+            <div class="metric-row d-flex justify-content-between">
+              <span class="text-muted">MAE</span>
+              <span class="fw-semibold">{{ m.mae }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="text-center mt-4">
+      <a href="{{ url_for('models') }}" class="btn btn-outline-primary px-4">
+        <i class="bi bi-cpu me-2"></i>View Full Model Analysis
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Interview Readiness ─────────────────────────────────────────────────── -->
+<section class="py-5 bg-dark-subtle">
+  <div class="container-xl">
+    <div class="section-header text-center mb-5">
+      <h2 class="fw-bold"><i class="bi bi-mortarboard text-gold me-2"></i>Interview Readiness</h2>
+      <p class="text-muted">Key talking points for Data Scientist / Data Analyst interviews (7–10 LPA)</p>
+    </div>
+    <div class="row g-4">
+
+      <div class="col-md-6">
+        <div class="interview-card card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h6 class="text-gold fw-bold mb-3"><i class="bi bi-briefcase me-2"></i>Business Problem</h6>
+            <p class="mb-0 text-muted">
+              Gold is a safe-haven asset. Investors and portfolio managers need accurate price forecasts
+              to hedge inflation risk and optimise asset allocation. By modelling GLD (SPDR Gold Shares ETF)
+              using equity (SPX), oil (USO), and silver (SLV) indices, we capture cross-asset relationships
+              that drive gold demand.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="interview-card card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h6 class="text-gold fw-bold mb-3"><i class="bi bi-question-circle me-2"></i>Why These Models?</h6>
+            <ul class="text-muted mb-0">
+              <li><strong>Lasso</strong> — Baseline regularised linear model. Handles multicollinearity; interpretable coefficients for stakeholders.</li>
+              <li class="mt-2"><strong>Random Forest</strong> — Ensemble of trees; robust to outliers, captures non-linear patterns, provides feature importance.</li>
+              <li class="mt-2"><strong>XGBoost</strong> — Gradient-boosted trees; industry standard for tabular data, excellent generalisation.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="interview-card card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h6 class="text-gold fw-bold mb-3"><i class="bi bi-funnel me-2"></i>Why Preprocess?</h6>
+            <ul class="text-muted mb-0">
+              <li><strong>StandardScaler</strong> — Lasso penalises magnitude; unscaled features would bias regularisation toward smaller-range columns.</li>
+              <li class="mt-2"><strong>Train-test split (80/20)</strong> — Prevents data leakage; simulates unseen production data.</li>
+              <li class="mt-2"><strong>Outlier treatment</strong> — Extreme values skew linear models; identified via IQR and boxplots.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="interview-card card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h6 class="text-gold fw-bold mb-3"><i class="bi bi-lightbulb me-2"></i>Key EDA Findings</h6>
+            <ul class="text-muted mb-0">
+              <li><strong>SLV ↔ GLD correlation = 0.87</strong> — Silver and gold move almost in lockstep (precious metals sector).</li>
+              <li class="mt-2"><strong>SPX ↔ GLD correlation ≈ 0.05</strong> — Near-zero: equities and gold are uncorrelated, confirming gold's safe-haven role.</li>
+              <li class="mt-2"><strong>EUR/USD excluded from predictions</strong> — Low direct correlation with GLD; removing it reduces overfitting risk.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-12">
+        <div class="interview-card card border-0 shadow-sm">
+          <div class="card-body p-4">
+            <h6 class="text-gold fw-bold mb-3"><i class="bi bi-bar-chart me-2"></i>Model Comparison Conclusions</h6>
+            <div class="row">
+              <div class="col-md-8 text-muted">
+                <p>Random Forest achieved <strong>R² = {{ (results['Random Forest']['r2']*100)|round(2) }}%</strong> vs
+                Lasso's {{ (results['Lasso']['r2']*100)|round(2) }}%, demonstrating that gold pricing
+                has non-linear dynamics that tree-based ensembles capture far better than regularised
+                linear models. XGBoost ({{ (results['XGBoost']['r2']*100)|round(2) }}%) comes close —
+                in production the two would be ensembled for robustness.
+                GridSearchCV confirmed optimal RF hyperparameters, and SLV consistently emerged as the
+                most important predictor in both tree models (importance > 0.80), aligning with domain knowledge.</p>
+              </div>
+              <div class="col-md-4">
+                <table class="table table-sm table-borderless mb-0">
+                  <thead><tr><th>Model</th><th>R²</th></tr></thead>
+                  <tbody>
+                    {% for n, m in results.items() %}
+                    <tr {% if n == best %}class="table-success"{% endif %}>
+                      <td>{{ n }}</td><td>{{ (m.r2*100)|round(2) }}%</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}

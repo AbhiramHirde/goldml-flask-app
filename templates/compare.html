@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}Compare Models — GoldML{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="section-header mb-5">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="/">Home</a></li>
+      <li class="breadcrumb-item active">Compare Models</li>
+    </ol></nav>
+    <h2 class="fw-bold">Compare Models</h2>
+    <p class="text-muted">Actual vs Predicted plots, residual analysis, and error distribution for all 3 models.</p>
+  </div>
+
+  <!-- ── Model Selector ──────────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <span class="fw-semibold text-muted small">SELECT MODEL:</span>
+        {% for name in ['Random Forest','Lasso','XGBoost'] %}
+        <button class="btn {% if name == 'Random Forest' %}btn-gold{% else %}btn-outline-secondary{% endif %} btn-sm px-4 model-btn"
+                data-model="{{ name }}">
+          {% if name == 'Random Forest' %}<i class="bi bi-trophy-fill me-1"></i>{% endif %}
+          {{ name }}
+        </button>
+        {% endfor %}
+        <span class="ms-auto badge bg-success">Test Set: 458 samples</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Actual vs Predicted Scatter ────────────────────────────────────── -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-7">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold">
+          <i class="bi bi-scatter-chart me-2"></i>Actual vs Predicted — <span id="scatterTitle">Random Forest</span>
+        </div>
+        <div class="card-body p-4">
+          <div class="chart-container-lg"><canvas id="scatterChart"></canvas></div>
+          <p class="text-muted small text-center mt-2 mb-0">
+            Perfect model = all points on the diagonal line
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-5">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold">
+          <i class="bi bi-bar-chart me-2"></i>Residuals Distribution — <span id="residTitle">Random Forest</span>
+        </div>
+        <div class="card-body p-4">
+          <div class="chart-container-lg"><canvas id="residualChart"></canvas></div>
+          <p class="text-muted small text-center mt-2 mb-0">
+            Centred around 0 = unbiased predictions
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── All Models Actual vs Predicted Line ────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-graph-up me-2"></i>All Models — Predicted vs Actual (Test Set, first 100 samples)
+    </div>
+    <div class="card-body p-4">
+      <div class="chart-container-xl"><canvas id="allModelsChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── Error Metrics Side by Side ─────────────────────────────────────── -->
+  <div class="row g-4 mb-4">
+    {% for name, m in results.items() %}
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100 {% if name == best %}border-warning{% endif %}" style="border-width:2px!important">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h6 class="fw-bold mb-0">{{ name }}</h6>
+            {% if name == best %}<span class="badge bg-warning text-dark">Best</span>{% endif %}
+          </div>
+          <!-- R2 gauge -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between small text-muted mb-1">
+              <span>R² Score</span><span class="fw-bold text-success">{{ (m.r2*100)|round(2) }}%</span>
+            </div>
+            <div class="progress" style="height:8px">
+              <div class="progress-bar bg-success" style="width:{{ (m.r2*100)|round(1) }}%"></div>
+            </div>
+          </div>
+          <div class="row g-2 text-center">
+            <div class="col-6">
+              <div class="p-2 rounded-3 bg-light">
+                <div class="fw-bold text-danger">${{ m.rmse }}</div>
+                <div class="text-muted" style="font-size:.7rem">RMSE</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded-3 bg-light">
+                <div class="fw-bold text-warning">${{ m.mae }}</div>
+                <div class="text-muted" style="font-size:.7rem">MAE</div>
+              </div>
+            </div>
+          </div>
+          <!-- Error interpretation -->
+          <div class="mt-3 p-2 rounded-2" style="background:#f8fafc; font-size:.75rem; color:#64748b">
+            {% if name == 'Random Forest' %}
+            On average, predictions are off by just <strong>${{ m.mae }}</strong> — less than 1% error on a ~$125 price.
+            {% elif name == 'XGBoost' %}
+            Strong performance, only <strong>${{ m.rmse }}</strong> RMSE — reliable for production use.
+            {% else %}
+            Linear baseline with <strong>${{ m.rmse }}</strong> RMSE. Non-linear patterns not fully captured.
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Radar Comparison ────────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-pentagon me-2"></i>Model Strengths Radar
+    </div>
+    <div class="card-body p-4">
+      <div class="row align-items-center">
+        <div class="col-md-5 mx-auto">
+          <canvas id="radarChart" height="280"></canvas>
+        </div>
+        <div class="col-md-7">
+          <h6 class="fw-bold mb-3">How to read this chart</h6>
+          <div class="d-flex flex-column gap-2">
+            {% for label, desc in [
+              ('R² Score','Higher is better. Proportion of variance explained.'),
+              ('Low RMSE','Inverted — closer to edge means lower error.'),
+              ('Low MAE','Inverted — closer to edge means lower absolute error.'),
+              ('Speed','How fast training completes. Lasso wins.'),
+              ('Interpretability','How easy to explain to non-technical stakeholders.'),
+            ] %}
+            <div class="d-flex gap-2 align-items-start">
+              <span class="badge bg-secondary mt-1" style="font-size:.65rem;min-width:90px">{{ label }}</span>
+              <span class="text-muted small">{{ desc }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CMP     = {{ compare | tojson }};
+const RESULTS = {{ results | tojson }};
+const BEST    = {{ best | tojson }};
+const C = { gold:'#f5a623', blue:'#3b82f6', green:'#10b981', red:'#ef4444', purple:'#8b5cf6', gray:'#94a3b8' };
+const MODEL_COLORS = { 'Random Forest': C.green, 'Lasso': C.blue, 'XGBoost': C.gold };
+
+let scatterChart, residualChart;
+
+function buildHist(data, bins=30) {
+  const mn=Math.min(...data), mx=Math.max(...data), w=(mx-mn)/bins;
+  const counts=new Array(bins).fill(0), labels=[];
+  for(let i=0;i<bins;i++) labels.push((mn+i*w).toFixed(2));
+  data.forEach(v=>{ let i=Math.min(Math.floor((v-mn)/w),bins-1); counts[i]++; });
+  return {labels,counts};
+}
+
+function updateCharts(modelName) {
+  const color  = MODEL_COLORS[modelName];
+  const actual = CMP.actual;
+  const pred   = CMP.preds[modelName];
+  const resid  = CMP.residuals[modelName];
+
+  document.getElementById('scatterTitle').textContent = modelName;
+  document.getElementById('residTitle').textContent   = modelName;
+
+  // ── Scatter: actual vs predicted ──────────────────────────────────────────
+  const scatterPts = actual.map((a,i) => ({x:a, y:pred[i]}));
+  const minV = Math.min(...actual), maxV = Math.max(...actual);
+
+  if (scatterChart) scatterChart.destroy();
+  scatterChart = new Chart(document.getElementById('scatterChart'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'Predicted vs Actual', data: scatterPts,
+          backgroundColor: color+'66', borderColor: color, pointRadius: 4, pointHoverRadius: 6 },
+        { label: 'Perfect Fit', data: [{x:minV,y:minV},{x:maxV,y:maxV}],
+          type: 'line', borderColor: '#94a3b8', borderDash:[6,4], borderWidth:1.5,
+          pointRadius:0, fill:false }
+      ]
+    },
+    options: {
+      responsive:true,
+      plugins:{ legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label==='Perfect Fit'?null:`Actual: $${ctx.parsed.x} | Pred: $${ctx.parsed.y}`}} },
+      scales:{
+        x:{title:{display:true,text:'Actual GLD ($)'}},
+        y:{title:{display:true,text:'Predicted GLD ($)'}}
+      }
+    }
+  });
+
+  // ── Residuals histogram ───────────────────────────────────────────────────
+  const {labels:rL, counts:rC} = buildHist(resid, 30);
+  if (residualChart) residualChart.destroy();
+  residualChart = new Chart(document.getElementById('residualChart'), {
+    type:'bar',
+    data:{ labels:rL, datasets:[{
+      label:'Residuals', data:rC,
+      backgroundColor: rL.map(l => parseFloat(l)>=0 ? color+'77' : C.red+'77'),
+      borderColor:     rL.map(l => parseFloat(l)>=0 ? color : C.red),
+      borderWidth:1
+    }]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{maxTicksLimit:8}, title:{display:true,text:'Error (Actual − Predicted)'}},
+              y:{beginAtZero:true, title:{display:true,text:'Count'}}}
+    }
+  });
+}
+
+// ── All models line chart ─────────────────────────────────────────────────────
+const lineIdx  = Array.from({length:100},(_,i)=>i);
+const actual100 = lineIdx.map(i=>CMP.actual[i]);
+new Chart(document.getElementById('allModelsChart'), {
+  type:'line',
+  data:{
+    labels: lineIdx.map(i=>`Sample ${i+1}`),
+    datasets:[
+      { label:'Actual GLD', data:actual100, borderColor:'#1e293b', borderWidth:2.5, pointRadius:0, fill:false, tension:0.2 },
+      ...Object.keys(CMP.preds).map(name=>({
+        label: name,
+        data: lineIdx.map(i=>CMP.preds[name][i]),
+        borderColor: MODEL_COLORS[name],
+        borderWidth: 1.5, pointRadius:0, fill:false, tension:0.2,
+        borderDash: name==='Lasso'?[5,3]:[]
+      }))
+    ]
+  },
+  options:{
+    responsive:true,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'top'}},
+    scales:{
+      x:{ticks:{maxTicksLimit:10}},
+      y:{title:{display:true,text:'GLD Price (USD)'}}
+    }
+  }
+});
+
+// ── Radar chart ───────────────────────────────────────────────────────────────
+// Normalise metrics to 0-100 for radar
+const r2s    = Object.values(RESULTS).map(m=>m.r2);
+const rmses  = Object.values(RESULTS).map(m=>m.rmse);
+const maes   = Object.values(RESULTS).map(m=>m.mae);
+const maxR2  = Math.max(...r2s), minRmse=Math.min(...rmses), maxRmse=Math.max(...rmses), minMae=Math.min(...maes), maxMae=Math.max(...maes);
+const speeds = {'Lasso':95,'Random Forest':60,'XGBoost':70};
+const interp = {'Lasso':90,'Random Forest':65,'XGBoost':55};
+
+const radarDatasets = Object.entries(RESULTS).map(([name,m]) => ({
+  label: name,
+  data: [
+    (m.r2/maxR2*100).toFixed(1),
+    ((1-(m.rmse-minRmse)/(maxRmse-minRmse||1))*100).toFixed(1),
+    ((1-(m.mae-minMae)/(maxMae-minMae||1))*100).toFixed(1),
+    speeds[name],
+    interp[name],
+  ],
+  backgroundColor: MODEL_COLORS[name]+'33',
+  borderColor:     MODEL_COLORS[name],
+  borderWidth: 2,
+  pointBackgroundColor: MODEL_COLORS[name],
+  pointRadius: 4,
+}));
+
+new Chart(document.getElementById('radarChart'), {
+  type:'radar',
+  data:{ labels:['R² Score','Low RMSE','Low MAE','Speed','Interpretability'], datasets:radarDatasets },
+  options:{
+    responsive:true,
+    plugins:{legend:{position:'bottom'}},
+    scales:{r:{min:0,max:100, ticks:{display:false}, grid:{color:'rgba(0,0,0,0.06)'}}}
+  }
+});
+
+// ── Model selector buttons ────────────────────────────────────────────────────
+document.querySelectorAll('.model-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.model-btn').forEach(b => {
+      b.className = 'btn btn-outline-secondary btn-sm px-4 model-btn';
+    });
+    btn.className = 'btn btn-gold btn-sm px-4 model-btn';
+    updateCharts(btn.dataset.model);
+  });
+});
+
+// Init with best model
+updateCharts('Random Forest');
+</script>
+{% endblock %}

@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+{% block title %}EDA — GoldML{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5">
+
+  <!-- Header -->
+  <div class="section-header mb-5">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="/">Home</a></li>
+        <li class="breadcrumb-item active">Exploratory Data Analysis</li>
+      </ol>
+    </nav>
+    <h2 class="fw-bold">Exploratory Data Analysis</h2>
+    <p class="text-muted">Complete statistical deep-dive into the gold price dataset.</p>
+  </div>
+
+  <!-- ── Dataset Overview ────────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-table me-2"></i>Dataset Overview
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-4">
+        <div class="col-md-3">
+          <div class="stat-pill text-center p-3 rounded-3 bg-light">
+            <div class="fs-4 fw-bold text-primary">{{ stats.shape[0] }}</div>
+            <div class="small text-muted">Total Rows</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-pill text-center p-3 rounded-3 bg-light">
+            <div class="fs-4 fw-bold text-primary">{{ stats.shape[1] }}</div>
+            <div class="small text-muted">Total Columns</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-pill text-center p-3 rounded-3 bg-light">
+            <div class="fs-4 fw-bold text-success">0</div>
+            <div class="small text-muted">Missing Values</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-pill text-center p-3 rounded-3 bg-light">
+            <div class="fs-4 fw-bold text-warning">5</div>
+            <div class="small text-muted">Numeric Features</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data types -->
+      <h6 class="fw-semibold mt-4 mb-3">Column Data Types</h6>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+          <thead class="table-light"><tr><th>Column</th><th>Dtype</th><th>Missing</th><th>Role</th></tr></thead>
+          <tbody>
+            {% for col, dtype in stats.dtypes.items() %}
+            <tr>
+              <td><code>{{ col }}</code></td>
+              <td><span class="badge bg-secondary">{{ dtype }}</span></td>
+              <td>
+                {% if stats.missing[col] == 0 %}
+                  <span class="badge bg-success">0</span>
+                {% else %}
+                  <span class="badge bg-danger">{{ stats.missing[col] }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if col == 'GLD' %}<span class="badge bg-warning text-dark">Target</span>
+                {% else %}<span class="badge bg-primary">Feature</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Statistical Summary ─────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-calculator me-2"></i>Statistical Summary
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle text-center">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-start ps-4">Statistic</th>
+              {% for col in stats.describe.keys() %}<th>{{ col }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for stat in ['count','mean','std','min','25%','50%','75%','max'] %}
+            <tr>
+              <td class="fw-semibold text-start ps-4">{{ stat }}</td>
+              {% for col in stats.describe.keys() %}
+              <td>{{ stats.describe[col][stat]|round(3) }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Skewness Analysis ───────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-symmetry-vertical me-2"></i>Skewness Analysis
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-3">
+        {% for col, skew in stats.skewness.items() %}
+        <div class="col-md-4">
+          <div class="p-3 rounded-3 border">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <strong>{{ col }}</strong>
+              <span class="badge {% if skew|abs < 0.5 %}bg-success{% elif skew|abs < 1 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                {{ skew }}
+              </span>
+            </div>
+            <div class="small text-muted">
+              {% if skew|abs < 0.5 %}Approximately symmetric
+              {% elif skew > 0 %}Right-skewed (positive)
+              {% else %}Left-skewed (negative){% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Charts Row 1: Histograms ───────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-bar-chart me-2"></i>Feature Distributions (Histograms)
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-4">
+        <div class="col-md-6"><div class="chart-container"><canvas id="histSPX"></canvas></div></div>
+        <div class="col-md-6"><div class="chart-container"><canvas id="histGLD"></canvas></div></div>
+        <div class="col-md-6"><div class="chart-container"><canvas id="histUSO"></canvas></div></div>
+        <div class="col-md-6"><div class="chart-container"><canvas id="histSLV"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Charts Row 2: Boxplots & Correlation ───────────────────────────── -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-7">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold">
+          <i class="bi bi-box me-2"></i>Boxplots — Outlier Detection
+        </div>
+        <div class="card-body p-4">
+          <div class="chart-container-lg"><canvas id="boxplotChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-5">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold">
+          <i class="bi bi-grid-3x3-gap me-2"></i>Correlation Heatmap
+        </div>
+        <div class="card-body p-4">
+          <div id="corrHeatmap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Gold Price Over Time ────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-graph-up me-2"></i>Gold Price (GLD) — Time Series
+    </div>
+    <div class="card-body p-4">
+      <div class="chart-container-xl"><canvas id="tsChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── Feature vs GLD Scatter ─────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-diagram-3 me-2"></i>Feature Relationships with GLD
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-4">
+        <div class="col-md-6"><div class="chart-container"><canvas id="scatterSLV"></canvas></div></div>
+        <div class="col-md-6"><div class="chart-container"><canvas id="scatterSPX"></canvas></div></div>
+        <div class="col-md-6"><div class="chart-container"><canvas id="scatterUSO"></canvas></div></div>
+        <div class="col-md-6"><div class="chart-container"><canvas id="scatterEUR"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const STATS = {{ stats | tojson }};
+const TS    = {{ ts   | tojson }};
+
+// ── Colour palette ──────────────────────────────────────────────────────────
+const COLORS = {
+  gold:   '#f5a623',
+  blue:   '#3b82f6',
+  green:  '#10b981',
+  red:    '#ef4444',
+  purple: '#8b5cf6',
+  gray:   '#6b7280',
+};
+
+// ── Histogram helper ────────────────────────────────────────────────────────
+function buildHist(data, bins=30) {
+  const mn = Math.min(...data), mx = Math.max(...data);
+  const w = (mx - mn) / bins;
+  const counts = new Array(bins).fill(0);
+  const labels = [];
+  for (let i=0; i<bins; i++) labels.push((mn + i*w).toFixed(1));
+  data.forEach(v => {
+    let idx = Math.floor((v - mn) / w);
+    if (idx >= bins) idx = bins-1;
+    counts[idx]++;
+  });
+  return {labels, counts};
+}
+
+function makeHistChart(canvasId, col, color) {
+  const {labels, counts} = buildHist(STATS.hist_data[col]);
+  new Chart(document.getElementById(canvasId), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{label: col, data: counts, backgroundColor: color+'99',
+                  borderColor: color, borderWidth: 1}]
+    },
+    options: {
+      responsive: true,
+      plugins: {legend: {display: false},
+                title: {display: true, text: `Distribution of ${col}`, font:{size:13,weight:'bold'}}},
+      scales: {x:{ticks:{maxTicksLimit:8}}, y:{beginAtZero:true, title:{display:true,text:'Frequency'}}}
+    }
+  });
+}
+
+makeHistChart('histSPX', 'SPX',     COLORS.blue);
+makeHistChart('histGLD', 'GLD',     COLORS.gold);
+makeHistChart('histUSO', 'USO',     COLORS.red);
+makeHistChart('histSLV', 'SLV',     COLORS.green);
+
+// ── Boxplot (simulated via floating bar) ─────────────────────────────────────
+const bpCols = ['SPX','GLD','USO','SLV','EUR/USD'];
+const bpNorm = bpCols.map(c => {
+  const b = STATS.boxplot_data[c];
+  return {col: c, min: b.min, q1: b.q1, median: b.median, q3: b.q3, max: b.max,
+          iqr: b.q3 - b.q1, mean: b.mean};
+});
+
+// normalise to 0-1 scale per column for visual comparison
+const bpData = bpNorm.map(b => {
+  const rng = b.max - b.min || 1;
+  return {
+    label: b.col,
+    data: [[((b.q1-b.min)/rng*100).toFixed(1), ((b.q3-b.min)/rng*100).toFixed(1)]],
+    backgroundColor: COLORS.blue+'66',
+    borderColor: COLORS.blue,
+    borderWidth: 2,
+    borderSkipped: false,
+  };
+});
+
+new Chart(document.getElementById('boxplotChart'), {
+  type: 'bar',
+  data: {
+    labels: bpCols,
+    datasets: [{
+      label: 'IQR Range (normalised)',
+      data: bpNorm.map(b => {
+        const rng = b.max - b.min || 1;
+        return [(b.q1-b.min)/rng*100, (b.q3-b.min)/rng*100];
+      }),
+      backgroundColor: bpCols.map((_,i) => [COLORS.blue,COLORS.gold,COLORS.red,COLORS.green,COLORS.purple][i]+'88'),
+      borderColor:     bpCols.map((_,i) => [COLORS.blue,COLORS.gold,COLORS.red,COLORS.green,COLORS.purple][i]),
+      borderWidth: 2,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: {display: false},
+      title: {display: true, text: 'IQR Range by Feature (normalised 0–100%)', font:{size:13,weight:'bold'}},
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const b = STATS.boxplot_data[bpCols[ctx.dataIndex]];
+            return [`Min: ${b.min.toFixed(2)}`, `Q1: ${b.q1.toFixed(2)}`,
+                    `Median: ${b.median.toFixed(2)}`, `Q3: ${b.q3.toFixed(2)}`,
+                    `Max: ${b.max.toFixed(2)}`];
+          }
+        }
+      }
+    },
+    scales: {x:{title:{display:true,text:'Normalised %'}}}
+  }
+});
+
+// ── Correlation Heatmap (HTML table render) ──────────────────────────────────
+const corrCols = Object.keys(STATS.corr);
+let html = '<div class="table-responsive"><table class="table table-sm text-center corr-table mb-0"><thead><tr><th></th>';
+corrCols.forEach(c => html += `<th class="small">${c}</th>`);
+html += '</tr></thead><tbody>';
+corrCols.forEach(row => {
+  html += `<tr><th class="small text-start">${row}</th>`;
+  corrCols.forEach(col => {
+    const v = STATS.corr[row][col];
+    const abs = Math.abs(v);
+    const r = Math.round(255*(1-abs)), g = Math.round(255*(1-abs)), b = 255;
+    const bg = v > 0
+      ? `rgba(${255-Math.round(abs*200)},${255-Math.round(abs*50)},${255-Math.round(abs*200)},${0.3+abs*0.6})`
+      : `rgba(${255-Math.round(abs*50)},${255-Math.round(abs*200)},${255-Math.round(abs*200)},${0.3+abs*0.6})`;
+    html += `<td style="background:${bg};font-size:.78rem;font-weight:${abs>.5?'bold':'normal'}">${v.toFixed(2)}</td>`;
+  });
+  html += '</tr>';
+});
+html += '</tbody></table></div>';
+document.getElementById('corrHeatmap').innerHTML = html;
+
+// ── Time Series Chart ────────────────────────────────────────────────────────
+new Chart(document.getElementById('tsChart'), {
+  type: 'line',
+  data: {
+    labels: TS.dates,
+    datasets: [{
+      label: 'GLD Price (USD)',
+      data: TS.gld,
+      borderColor: COLORS.gold,
+      backgroundColor: COLORS.gold+'22',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {legend:{display:false}, title:{display:true,text:'Gold ETF (GLD) Price Over Time', font:{size:14,weight:'bold'}}},
+    scales: {
+      x: {ticks:{maxTicksLimit:10}, title:{display:true,text:'Date'}},
+      y: {title:{display:true,text:'GLD Price (USD)'}}
+    }
+  }
+});
+
+// ── Scatter helpers ──────────────────────────────────────────────────────────
+function scatterData(xCol) {
+  const xs = STATS.hist_data[xCol];
+  const ys = STATS.hist_data['GLD'];
+  const step = Math.ceil(xs.length / 300);
+  const pts = [];
+  for (let i=0; i<xs.length; i+=step) pts.push({x: xs[i], y: ys[i]});
+  return pts;
+}
+
+function makeScatter(canvasId, xCol, color) {
+  new Chart(document.getElementById(canvasId), {
+    type: 'scatter',
+    data: {datasets: [{label: `${xCol} vs GLD`, data: scatterData(xCol),
+                       backgroundColor: color+'66', borderColor: color, pointRadius: 3}]},
+    options: {
+      responsive: true,
+      plugins: {
+        title: {display:true, text:`${xCol} vs GLD`, font:{size:13,weight:'bold'}},
+        legend: {display:false}
+      },
+      scales: {
+        x: {title:{display:true,text: xCol}},
+        y: {title:{display:true,text:'GLD'}}
+      }
+    }
+  });
+}
+
+makeScatter('scatterSLV', 'SLV',     COLORS.green);
+makeScatter('scatterSPX', 'SPX',     COLORS.blue);
+makeScatter('scatterUSO', 'USO',     COLORS.red);
+makeScatter('scatterEUR', 'EUR/USD', COLORS.purple);
+</script>
+{% endblock %}

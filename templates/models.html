@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% block title %}Models — GoldML{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5">
+
+  <!-- Header -->
+  <div class="section-header mb-5">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="/">Home</a></li>
+        <li class="breadcrumb-item active">Model Comparison</li>
+      </ol>
+    </nav>
+    <h2 class="fw-bold">Model Training & Comparison</h2>
+    <p class="text-muted">Lasso · Random Forest · XGBoost — trained, tuned, and compared side-by-side.</p>
+  </div>
+
+  <!-- ── Metrics Table ───────────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-table me-2"></i>Performance Metrics Comparison
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 text-center">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-start ps-4">Model</th>
+              <th>R² Score</th>
+              <th>RMSE (↓ better)</th>
+              <th>MAE (↓ better)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for name, m in results.items() %}
+            <tr {% if name == best %}class="table-warning"{% endif %}>
+              <td class="text-start ps-4 fw-semibold">
+                {% if name == best %}<i class="bi bi-trophy-fill text-warning me-2"></i>{% endif %}
+                {{ name }}
+              </td>
+              <td>
+                <span class="fw-bold {% if m.r2 > 0.95 %}text-success{% elif m.r2 > 0.85 %}text-warning{% else %}text-danger{% endif %}">
+                  {{ (m.r2 * 100)|round(2) }}%
+                </span>
+              </td>
+              <td>{{ m.rmse }}</td>
+              <td>{{ m.mae }}</td>
+              <td>
+                {% if name == best %}
+                  <span class="badge bg-success">Selected</span>
+                {% else %}
+                  <span class="badge bg-secondary">Compared</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bar Charts: Metrics ────────────────────────────────────────────── -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold"><i class="bi bi-bar-chart me-2"></i>R² Score</div>
+        <div class="card-body p-4"><canvas id="r2Chart"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold"><i class="bi bi-bar-chart me-2"></i>RMSE</div>
+        <div class="card-body p-4"><canvas id="rmseChart"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold"><i class="bi bi-bar-chart me-2"></i>MAE</div>
+        <div class="card-body p-4"><canvas id="maeChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Hyperparameter Tuning ──────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-sliders me-2"></i>Hyperparameter Tuning — GridSearchCV (Random Forest)
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-4 align-items-center">
+        <div class="col-md-5">
+          <h6 class="fw-semibold mb-3">Search Space</h6>
+          <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light"><tr><th>Parameter</th><th>Values Tried</th></tr></thead>
+            <tbody>
+              <tr><td><code>n_estimators</code></td><td>100, 200</td></tr>
+              <tr><td><code>max_depth</code></td><td>None, 10</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="col-md-4">
+          <h6 class="fw-semibold mb-3">Best Parameters Found</h6>
+          {% if results['Random Forest'].best_params %}
+          <ul class="list-unstyled mb-0">
+            {% for k, v in results['Random Forest'].best_params.items() %}
+            <li class="mb-2">
+              <span class="badge bg-primary me-2">{{ k }}</span>
+              <strong>{{ v if v is not none else 'None' }}</strong>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+        <div class="col-md-3 text-center">
+          <div class="p-3 rounded-3 bg-success bg-opacity-10 border border-success">
+            <div class="fs-3 fw-bold text-success">
+              {{ (results['Random Forest'].best_score * 100)|round(2) }}%
+            </div>
+            <div class="small text-muted">Best CV R² Score</div>
+            <div class="small text-muted">(3-fold cross-validation)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Lasso Coefficients ─────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-rulers me-2"></i>Lasso Regression — Feature Coefficients
+    </div>
+    <div class="card-body p-4">
+      <div class="row align-items-center g-4">
+        <div class="col-md-5">
+          <p class="text-muted small mb-3">
+            Lasso (L1 regularisation) can shrink coefficients to zero, effectively
+            performing feature selection. Alpha = 0.01 keeps all features active here.
+          </p>
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light"><tr><th>Feature</th><th>Coefficient</th></tr></thead>
+            <tbody>
+              {% for feat, coef in results['Lasso'].coef.items() %}
+              <tr>
+                <td><code>{{ feat }}</code></td>
+                <td>
+                  <span class="fw-semibold {% if coef > 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ coef }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="col-md-7">
+          <canvas id="lassoCoefChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Feature Importance ─────────────────────────────────────────────── -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold">
+          <i class="bi bi-tree me-2"></i>Random Forest — Feature Importance
+        </div>
+        <div class="card-body p-4">
+          <canvas id="rfImportanceChart"></canvas>
+          <div class="mt-3">
+            {% for feat, imp in results['Random Forest'].feature_importance.items() %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small fw-semibold">{{ feat }}</span>
+              <span class="small text-muted">{{ (imp*100)|round(1) }}%</span>
+            </div>
+            <div class="progress mb-2" style="height:6px">
+              <div class="progress-bar bg-success" style="width:{{ (imp*100)|round(1) }}%"></div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header card-header-gold">
+          <i class="bi bi-lightning me-2"></i>XGBoost — Feature Importance
+        </div>
+        <div class="card-body p-4">
+          <canvas id="xgbImportanceChart"></canvas>
+          <div class="mt-3">
+            {% for feat, imp in results['XGBoost'].feature_importance.items() %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small fw-semibold">{{ feat }}</span>
+              <span class="small text-muted">{{ (imp*100)|round(1) }}%</span>
+            </div>
+            <div class="progress mb-2" style="height:6px">
+              <div class="progress-bar bg-warning" style="width:{{ (imp*100)|round(1) }}%"></div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Model Cards: Why Each ──────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header card-header-gold">
+      <i class="bi bi-info-circle me-2"></i>Why Each Model Was Chosen
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="why-card p-4 rounded-3 border h-100">
+            <div class="why-icon mb-2">📐</div>
+            <h6 class="fw-bold">Lasso Regression</h6>
+            <ul class="text-muted small ps-3 mb-0">
+              <li>Strong interpretable baseline</li>
+              <li>L1 penalty handles multicollinearity</li>
+              <li>Shrinks irrelevant features to zero</li>
+              <li>Fast to train; easy to explain to business</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="why-card p-4 rounded-3 border h-100 border-success">
+            <div class="why-icon mb-2">🌳</div>
+            <h6 class="fw-bold text-success">Random Forest <span class="badge bg-success ms-1 fs-xs">Best</span></h6>
+            <ul class="text-muted small ps-3 mb-0">
+              <li>Captures non-linear relationships</li>
+              <li>Robust to outliers and noise</li>
+              <li>Built-in feature importance ranking</li>
+              <li>Bagging reduces variance / overfitting</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="why-card p-4 rounded-3 border h-100">
+            <div class="why-icon mb-2">⚡</div>
+            <h6 class="fw-bold">XGBoost</h6>
+            <ul class="text-muted small ps-3 mb-0">
+              <li>Industry standard for tabular data</li>
+              <li>Boosting corrects previous errors</li>
+              <li>Regularisation prevents overfitting</li>
+              <li>Excellent generalisation performance</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const RESULTS = {{ results | tojson }};
+const MODELS  = Object.keys(RESULTS);
+const COLORS  = ['#3b82f6', '#10b981', '#f5a623'];
+
+// ── Metric bar charts ────────────────────────────────────────────────────────
+function metricBar(canvasId, metric, label, higherBetter) {
+  const vals = MODELS.map(m => RESULTS[m][metric]);
+  const best = higherBetter ? Math.max(...vals) : Math.min(...vals);
+  new Chart(document.getElementById(canvasId), {
+    type: 'bar',
+    data: {
+      labels: MODELS,
+      datasets: [{
+        label,
+        data: vals,
+        backgroundColor: vals.map(v => v === best ? '#10b98188' : '#3b82f688'),
+        borderColor:     vals.map(v => v === best ? '#10b981'   : '#3b82f6'),
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {legend:{display:false}},
+      scales: {y:{beginAtZero: metric !== 'r2'}}
+    }
+  });
+}
+
+metricBar('r2Chart',   'r2',   'R² Score', true);
+metricBar('rmseChart', 'rmse', 'RMSE',     false);
+metricBar('maeChart',  'mae',  'MAE',      false);
+
+// ── Lasso coefficients chart ─────────────────────────────────────────────────
+const lassoCoef = RESULTS['Lasso']['coef'];
+const lassoFeats = Object.keys(lassoCoef);
+const lassoVals  = Object.values(lassoCoef);
+new Chart(document.getElementById('lassoCoefChart'), {
+  type: 'bar',
+  data: {
+    labels: lassoFeats,
+    datasets: [{
+      label: 'Coefficient',
+      data: lassoVals,
+      backgroundColor: lassoVals.map(v => v >= 0 ? '#10b98188' : '#ef444488'),
+      borderColor:     lassoVals.map(v => v >= 0 ? '#10b981'   : '#ef4444'),
+      borderWidth: 2, borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {legend:{display:false},
+              title:{display:true,text:'Lasso Feature Coefficients',font:{size:13,weight:'bold'}}},
+    scales: {y:{title:{display:true,text:'Coefficient value'}}}
+  }
+});
+
+// ── Feature importance charts ────────────────────────────────────────────────
+function importanceChart(canvasId, model, color) {
+  const fi = RESULTS[model]['feature_importance'];
+  new Chart(document.getElementById(canvasId), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(fi),
+      datasets: [{
+        data: Object.values(fi),
+        backgroundColor: ['#10b98199','#3b82f699','#f5a62399','#ef444499'],
+        borderColor:     ['#10b981',  '#3b82f6',  '#f5a623',  '#ef4444'],
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {position:'bottom'},
+        title: {display:true, text:`${model} — Feature Importance`, font:{size:13,weight:'bold'}}
+      }
+    }
+  });
+}
+
+importanceChart('rfImportanceChart',  'Random Forest', '#10b981');
+importanceChart('xgbImportanceChart', 'XGBoost',       '#f5a623');
+</script>
+{% endblock %}
