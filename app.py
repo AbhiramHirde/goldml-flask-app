@@ -10,17 +10,15 @@ import joblib, numpy as np, json, os
 
 app = Flask(__name__)
 
-BASE_DIR   = os.path.dirname(__file__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, 'models', 'gold_model.pkl')
 DATA_PATH  = os.path.join(BASE_DIR, 'static', 'data', 'app_data.json')
 
 art       = joblib.load(MODEL_PATH)
 rf_model  = art['rf']
 lasso     = art['lasso']
-
 scaler    = art['scaler']
 FEATURES  = art['features']
-# ['SPX','USO','SLV','EUR/USD','SLV_USO_Ratio','GLD_lag1','GLD_MA7','SPX_Return','SLV_Return']
 
 with open(DATA_PATH) as f:
     APP_DATA = json.load(f)
@@ -97,14 +95,12 @@ def predict():
 
             pred_rf    = round(float(rf_model.predict(X)[0]), 4)
             pred_lasso = round(float(lasso.predict(X_sc)[0]), 4)
-           
 
             prediction = pred_rf
             all_preds  = {
                 'Random Forest': pred_rf,
                 'Lasso':         pred_lasso,
-                
-                'Ensemble':      round((pred_rf + pred_lasso + pred_xgb) / 3, 4)
+                'Ensemble':      round((pred_rf + pred_lasso) / 2, 4)
             }
 
         except (ValueError, KeyError) as e:
@@ -133,12 +129,10 @@ def api_predict():
         X_sc = scaler.transform(X)
         pred_rf    = round(float(rf_model.predict(X)[0]), 4)
         pred_lasso = round(float(lasso.predict(X_sc)[0]), 4)
-        pred_xgb   = round(float(xgb_model.predict(X)[0]), 4)
 
         return jsonify({'status': 'success', 'predictions': {
             'Random Forest': pred_rf, 'Lasso': pred_lasso,
-            
-            'Ensemble': round((pred_rf+pred_lasso+pred_xgb)/3, 4)
+            'Ensemble': round((pred_rf+pred_lasso)/2, 4)
         }})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 400
