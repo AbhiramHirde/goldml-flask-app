@@ -17,7 +17,7 @@ DATA_PATH  = os.path.join(BASE_DIR, 'static', 'data', 'app_data.json')
 art       = joblib.load(MODEL_PATH)
 rf_model  = art['rf']
 lasso     = art['lasso']
-xgb_model = art['xgb']
+
 scaler    = art['scaler']
 FEATURES  = art['features']
 # ['SPX','USO','SLV','EUR/USD','SLV_USO_Ratio','GLD_lag1','GLD_MA7','SPX_Return','SLV_Return']
@@ -97,13 +97,13 @@ def predict():
 
             pred_rf    = round(float(rf_model.predict(X)[0]), 4)
             pred_lasso = round(float(lasso.predict(X_sc)[0]), 4)
-            pred_xgb   = round(float(xgb_model.predict(X)[0]), 4)
+           
 
             prediction = pred_rf
             all_preds  = {
                 'Random Forest': pred_rf,
                 'Lasso':         pred_lasso,
-                'XGBoost':       pred_xgb,
+                
                 'Ensemble':      round((pred_rf + pred_lasso + pred_xgb) / 3, 4)
             }
 
@@ -137,7 +137,7 @@ def api_predict():
 
         return jsonify({'status': 'success', 'predictions': {
             'Random Forest': pred_rf, 'Lasso': pred_lasso,
-            'XGBoost': pred_xgb,
+            
             'Ensemble': round((pred_rf+pred_lasso+pred_xgb)/3, 4)
         }})
     except Exception as e:
